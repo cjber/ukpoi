@@ -1,0 +1,51 @@
+[project]
+name = "ukpoi"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "cjber", email = "cjberragan@gmail.com" }
+]
+dependencies = [
+    "dagster>=1.6.9",
+    "dagster-cloud>=1.6.9",
+    "dagster-duckdb>=0.22.9",
+    "dagster-webserver>=1.6.9",
+    "dagster-aws>=0.22.9",
+    "dagster-postgres>=0.22.13",
+    "pandas>=2.2.1",
+    "polars>=0.20.15",
+    "hvplot>=0.9.2",
+    "pyarrow>=15.0.1",
+    "pyparsing>=3.1.2",
+    "geopandas>=0.14.3",
+    "datashader>=0.16.0",
+    "dask[dataframe]>=2024.4.1",
+    "matplotlib>=3.9.0",
+    "h3>=3.7.7",
+    "pyogrio>=0.8.0",
+]
+readme = "README.md"
+requires-python = ">= 3.11"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ipython>=8.22.2",
+    "sourcery-cli>=1.15.0",
+]
+
+[tool.rye.scripts]
+requirements = "uv pip compile pyproject.toml -o requirements.txt"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.dagster]
+module_name = "src"

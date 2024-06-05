@@ -1,0 +1,90 @@
+services:
+  ukpoi-postgresql:
+    image: postgres:11
+    container_name: ukpoi-postgresql
+    environment:
+      POSTGRES_USER: "postgres_user"
+      POSTGRES_PASSWORD: "postgres_password"
+      POSTGRES_DB: "postgres_db"
+    networks:
+      - ukpoi-network
+
+  ukpoi-code:
+    container_name: ukpoi-code
+    restart: always
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: ukpoi
+    entrypoint:
+      - dagster
+      - api
+      - grpc
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "4000"
+      - -m
+      - src
+    environment:
+      DAGSTER_POSTGRES_USER: "postgres_user"
+      DAGSTER_POSTGRES_PASSWORD: "postgres_password"
+      DAGSTER_POSTGRES_DB: "postgres_db"
+      DAGSTER_CURRENT_IMAGE: "ukpoi"
+    volumes:
+      - ./src:/opt/dagster/app/src
+      - ./data:/opt/dagster/app/data
+    networks:
+      - ukpoi-network
+
+  ukpoi-server:
+    container_name: ukpoi-server
+    build:
+      context: .
+      dockerfile: Containerfile
+    entrypoint:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3001"
+    expose:
+      - "3001"
+    ports:
+      - 3001:3001
+    environment:
+      DAGSTER_POSTGRES_USER: "postgres_user"
+      DAGSTER_POSTGRES_PASSWORD: "postgres_password"
+      DAGSTER_POSTGRES_DB: "postgres_db"
+    volumes:
+      - ./src:/opt/dagster/app/src
+      - ./data:/opt/dagster/app/data
+    networks:
+      - ukpoi-network
+
+  ukpoi-daemon:
+    container_name: ukpoi-daemon
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: Containerfile
+    entrypoint:
+      - dagster-daemon
+      - run
+    environment:
+      DAGSTER_POSTGRES_USER: "postgres_user"
+      DAGSTER_POSTGRES_PASSWORD: "postgres_password"
+      DAGSTER_POSTGRES_DB: "postgres_db"
+    volumes:
+      - ./src:/opt/dagster/app/src
+      - ./data:/opt/dagster/app/data
+    networks:
+      - ukpoi-network
+    depends_on: 
+      - ukpoi-postgresql
+      - ukpoi-code
+
+networks:
+  ukpoi-network:
+    driver: bridge
+    name: ukpoi-network
