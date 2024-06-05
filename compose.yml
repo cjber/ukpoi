@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: "postgres_user"
       POSTGRES_PASSWORD: "postgres_password"
       POSTGRES_DB: "postgres_db"
+      PGPORT: "5433"
     networks:
       - ukpoi-network
 
@@ -23,7 +24,7 @@ services:
       - -h
       - "0.0.0.0"
       - -p
-      - "4000"
+      - "4001"
       - -m
       - src
     environment:
