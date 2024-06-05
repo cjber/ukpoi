@@ -1,4 +1,4 @@
-# OvertureUK
+# UKPOI
 
 Overture Point of Interest (POI) data for the United Kingdom. Automatically queries the latest Overture AWS data using Dagster for ETL orchestration. The project is containerised using Docker (or Podman) Compose for easy deployment and management. Uses DuckDB with the spatial plugin to query only the UK bounding box.
 
