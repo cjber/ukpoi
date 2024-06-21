@@ -3,6 +3,7 @@ from pathlib import Path
 
 class Paths:
     DATA = Path("data")
+    RAW = DATA / Path("raw")
     STAGING = DATA / Path("staging")
     OUT = DATA / Path("out")
 

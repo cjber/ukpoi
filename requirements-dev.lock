@@ -30,9 +30,9 @@ bleach==6.1.0
 bokeh==3.4.1
     # via hvplot
     # via panel
-boto3==1.34.118
+boto3==1.34.119
     # via dagster-aws
-botocore==1.34.118
+botocore==1.34.119
     # via boto3
     # via s3transfer
 certifi==2024.6.2
@@ -70,7 +70,7 @@ contourpy==1.2.1
     # via matplotlib
 croniter==2.0.5
     # via dagster
-cryptography==42.0.7
+cryptography==42.0.8
     # via pyjwt
 cycler==0.12.1
     # via matplotlib
@@ -268,7 +268,7 @@ pillow==10.3.0
     # via matplotlib
 polars==0.20.31
     # via ukpoi
-prompt-toolkit==3.0.45
+prompt-toolkit==3.0.46
     # via ipython
     # via questionary
 protobuf==4.25.3

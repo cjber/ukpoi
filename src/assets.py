@@ -1,14 +1,13 @@
 import base64
-import geopandas as gpd
-import h3
-from duckdb.typing import DOUBLE, INTEGER, VARCHAR
 
 import colorcet
 import datashader as ds
 import duckdb
+import h3
 from dagster import MaterializeResult, MetadataValue, asset
 from dagster_aws.s3 import S3Resource
 from dagster_duckdb import DuckDBResource
+from duckdb.typing import DOUBLE, INTEGER, VARCHAR
 
 from src.partitions import release_partition
 from src.utils import Constants, Paths
@@ -153,8 +152,8 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
             CAST(sources[0].dataset AS STRING) AS source,
             CAST(sources[0].record_id AS STRING) AS source_record_id,
             geometry,
-            ST_X(geometry) as lat,
-            ST_Y(geometry) as long,
+            ST_X(geometry) as long,
+            ST_Y(geometry) as lat,
         FROM 
             {table_name}
     )
@@ -174,21 +173,36 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
             }
         )
 
-@asset 
-def lsoa2021(database: DuckDBResource):
+
+@asset
+def oa2021(database: DuckDBResource):
     with database.get_connection() as conn:
         conn.query(
-            """
+            f"""
             INSTALL spatial;
             LOAD spatial;
 
-            CREATE OR REPLACE TABLE lsoa2021 AS
-                (
-            SELECT *, ST_Transform(geom, 'EPSG:27700', 'EPSG:4326') AS MERC 
-            FROM ST_Read('./data/raw/LSOA2021/LSOA_2021_EW_BFC_V8.shp')
+            CREATE OR REPLACE TABLE oa2021 AS
+            (
+            SELECT OA21CD, ST_Transform(SHAPE, 'EPSG:27700', 'EPSG:4326') AS MERC 
+            FROM ST_Read('{Paths.RAW / 'OA_2021_BGC.gpkg'}')
             );
             """
-    )
+        )
+
+
+@asset
+def oa_lookup(database: DuckDBResource):
+    with database.get_connection() as conn:
+        conn.query(
+            f"""
+            CREATE OR REPLACE TABLE oa_lookup AS
+            (
+            SELECT OA21CD, LSOA21CD, MSOA21CD, LAD22CD
+            FROM '{Paths.RAW / 'OA_lookup-2021.csv'}'
+            );
+            """
+        )
 
 
 @asset
@@ -205,7 +219,8 @@ def sgdz2011(database: DuckDBResource):
             FROM ST_Read('./data/raw/SG_DataZone/SG_DataZone_Bdry_2011.shp')
             );
             """
-    )
+        )
+
 
 @asset
 def nidz2021(database: DuckDBResource):
@@ -221,10 +236,13 @@ def nidz2021(database: DuckDBResource):
             FROM ST_Read('./data/raw/NIDZ2021/DZ2021.shp')
             );
             """
-    )
+        )
 
 
-@asset(deps=[overture_places_cleaned, lsoa2021, sgdz2011, nidz2021], partitions_def=release_partition)
+@asset(
+    deps=[overture_places_cleaned, oa2021, oa_lookup, sgdz2011, nidz2021],
+    partitions_def=release_partition,
+)
 def uk_places(context, database: DuckDBResource) -> MaterializeResult:
     """
     Retrieves and processes UK places data from a specified URL, generates a visualization of the data, and returns a MaterializeResult containing the image data and the number of rows in the dataframe.
@@ -241,27 +259,28 @@ def uk_places(context, database: DuckDBResource) -> MaterializeResult:
     with database.get_connection() as conn:
         conn.create_function("add_h3", h3.geo_to_h3, [DOUBLE, DOUBLE, INTEGER], VARCHAR)
         conn.sql(
-        f"""
+            f"""
         INSTALL spatial;
         LOAD spatial;
 
         COPY (
-        SELECT
-            places.*,
-            lsoa2021.LSOA21NM,
-            lsoa2021.LSOA21CD,
-            nidz2021.DZ2021_cd AS NI_DZ2021CD,
-            sgdz2011.DataZone AS SG_DZ2011CD,
-            add_h3(places.lat, places.long, 15) AS h3_15
-        FROM
-            {table_name}_cleaned AS places
-        LEFT JOIN lsoa2021 ON
-            ST_Intersects(places.geometry, lsoa2021.MERC)
-        LEFT JOIN sgdz2011 ON
-            ST_Intersects(places.geometry, sgdz2011.MERC)
-        LEFT JOIN nidz2021 ON
-            ST_Intersects(places.geometry, nidz2021.MERC)
-            ) TO {table_name}.gpkg (FORMAT 'GDAL', DRIVER 'GPKG')
+            SELECT
+                places.*,
+                oa_lookup.*,
+                sgdz2011.DataZone AS SG_DZ2011CD,
+                nidz2021.DZ2021_cd AS NI_DZ2021CD,
+                add_h3(places.lat, places.long, 15) AS h3_15
+            FROM
+                {table_name}_cleaned AS places
+            LEFT JOIN oa2021 ON
+                ST_Intersects(places.geometry, oa2021.MERC)
+            LEFT JOIN oa_lookup ON
+                oa2021.OA21CD = oa_lookup.OA21CD
+            LEFT JOIN sgdz2011 ON
+                ST_Intersects(places.geometry, sgdz2011.MERC)
+            LEFT JOIN nidz2021 ON
+                ST_Intersects(places.geometry, nidz2021.MERC)
+        ) TO '{Paths.OUT / table_name}.parquet' (FORMAT 'PARQUET', COMPRESSION 'zstd')
         """
         )
 
