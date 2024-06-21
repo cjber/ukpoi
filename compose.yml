@@ -6,7 +6,6 @@ services:
       POSTGRES_USER: "postgres_user"
       POSTGRES_PASSWORD: "postgres_password"
       POSTGRES_DB: "postgres_db"
-      PGPORT: "5433"
     networks:
       - ukpoi-network
 
@@ -17,6 +16,8 @@ services:
       context: .
       dockerfile: Containerfile
     image: ukpoi
+    security_opt:
+      - "label:disable"
     entrypoint:
       - dagster
       - api
@@ -53,6 +54,8 @@ services:
       - "3001"
     ports:
       - 3001:3001
+    security_opt:
+      - "label:disable"
     environment:
       DAGSTER_POSTGRES_USER: "postgres_user"
       DAGSTER_POSTGRES_PASSWORD: "postgres_password"
@@ -72,6 +75,8 @@ services:
     entrypoint:
       - dagster-daemon
       - run
+    security_opt:
+      - "label:disable"
     environment:
       DAGSTER_POSTGRES_USER: "postgres_user"
       DAGSTER_POSTGRES_PASSWORD: "postgres_password"
