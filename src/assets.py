@@ -3,6 +3,7 @@ import base64
 import colorcet
 import datashader as ds
 import geopandas as gpd
+import h3
 import pandas as pd
 from dagster import MaterializeResult, MetadataValue, asset
 from dagster_aws.s3 import S3Resource
@@ -226,9 +227,13 @@ def uk_places(
     with database.get_connection() as conn:
         df = conn.sql(f"SELECT * FROM {table_name}_cleaned").df()
 
+    df["h3_15"] = df.apply(lambda row: h3.latlng_to_cell(row.lat, row.long, 15), axis=1)
     gdf = gpd.GeoDataFrame(
-        df, geometry=gpd.points_from_xy(df.long, df.lat), crs="EPSG:4326"
-    ).to_crs("EPSG: 27700")
+        df,
+        geometry=gpd.points_from_xy(df.long, df.lat),
+        crs="EPSG:4326",
+    )
+    gdf = gdf.to_crs("EPSG: 27700")
     gdf["easting"], gdf["northing"] = gdf.geometry.x, gdf.geometry.y
 
     gdf = gpd.sjoin(gdf, oa2021, how="left").drop(columns=["index_right"])

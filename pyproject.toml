@@ -20,8 +20,8 @@ dependencies = [
     "datashader>=0.16.0",
     "dask[dataframe]>=2024.4.1",
     "matplotlib>=3.9.0",
-    "h3>=3.7.7",
     "pyogrio>=0.8.0",
+    "h3>=3.7.7",
 ]
 readme = "README.md"
 requires-python = ">= 3.11"

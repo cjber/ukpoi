@@ -54,7 +54,7 @@ coloredlogs==14.0
 contourpy==1.2.1
     # via bokeh
     # via matplotlib
-croniter==3.0.0
+croniter==3.0.1
     # via dagster
 cycler==0.12.1
     # via matplotlib
@@ -131,6 +131,8 @@ idna==3.7
     # via anyio
     # via requests
     # via yarl
+importlib-metadata==8.2.0
+    # via dask
 jinja2==3.1.4
     # via bokeh
     # via dagster
@@ -359,3 +361,5 @@ xyzservices==2024.6.0
     # via bokeh
 yarl==1.9.4
     # via gql
+zipp==3.19.2
+    # via importlib-metadata
