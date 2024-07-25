@@ -10,5 +10,6 @@ wheels/
 .env
 .envrc
 
+cdrc
 data
 .old
