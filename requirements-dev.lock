@@ -137,8 +137,6 @@ idna==3.7
     # via anyio
     # via requests
     # via yarl
-importlib-metadata==8.2.0
-    # via dask
 ipython==8.26.0
 jedi==0.19.1
     # via ipython
@@ -358,7 +356,6 @@ traitlets==5.14.3
 typing-extensions==4.12.2
     # via alembic
     # via dagster
-    # via ipython
     # via panel
     # via pydantic
     # via pydantic-core
@@ -393,5 +390,3 @@ xyzservices==2024.6.0
     # via bokeh
 yarl==1.9.4
     # via gql
-zipp==3.19.2
-    # via importlib-metadata

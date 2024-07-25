@@ -131,8 +131,6 @@ idna==3.7
     # via anyio
     # via requests
     # via yarl
-importlib-metadata==8.2.0
-    # via dask
 jinja2==3.1.4
     # via bokeh
     # via dagster
@@ -361,5 +359,3 @@ xyzservices==2024.6.0
     # via bokeh
 yarl==1.9.4
     # via gql
-zipp==3.19.2
-    # via importlib-metadata
