@@ -32,8 +32,10 @@ _**NOTE:** all `docker` commands can be substituted with `podman`_
 ```bash
 docker compose up
 ```
+> _Add `-d` to this command if you would prefer to run it in the background._
 
-This starts the Docker containers and initiates the automated pipeline. Navigate to `localhost:3000` to manage the Dagster orchestration pipeline if required. Add `-d` to this command if you would prefer to run it in the background.
+This starts the Docker containers for the Dagster Web server, Dagster Daemon, and the code container. Navigate to `localhost:3000` to manage the Dagster orchestration pipeline. To initiate the automation; 'Automation→Schedules' toggle on to find new releases daily, and 'Automation→Sensors' to process new releases when found.
+
 
 ### Delete and Stop all Containers
 
@@ -46,5 +48,5 @@ docker compose down
 To also remove the containers, execute:
 
 ```bash
-docker compose down --rmi all
+docker compose down --rmi all  # (does not work with podman)
 ```
