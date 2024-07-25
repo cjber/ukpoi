@@ -2,12 +2,11 @@ import base64
 
 import colorcet
 import datashader as ds
-import duckdb
-import h3
+import geopandas as gpd
+import pandas as pd
 from dagster import MaterializeResult, MetadataValue, asset
 from dagster_aws.s3 import S3Resource
 from dagster_duckdb import DuckDBResource
-from duckdb.typing import DOUBLE, INTEGER, VARCHAR
 
 from src.partitions import release_partition
 from src.utils import Constants, Paths
@@ -54,7 +53,7 @@ def overture_places_table(context, database: DuckDBResource) -> MaterializeResul
         AND bbox.ymin > 49.75
         AND bbox.ymax < 61.01
     """
-        if "beta" in release
+        if "alpha" not in release
         else """
         bbox.minx > -9.0
         AND bbox.maxx < 2.01
@@ -63,7 +62,7 @@ def overture_places_table(context, database: DuckDBResource) -> MaterializeResul
     """
     )
 
-    query_buildings = f"""
+    query = f"""
     INSTALL httpfs;
     INSTALL spatial;
 
@@ -76,11 +75,6 @@ def overture_places_table(context, database: DuckDBResource) -> MaterializeResul
        id,
        CAST(names AS JSON) AS names,
        CAST(categories AS JSON) AS categories,
-       CAST(websites AS JSON) AS websites,
-       CAST(socials AS JSON) AS socials,
-       CAST(emails AS JSON) AS emails,
-       CAST(phones AS JSON) AS phones,
-       CAST(brand AS JSON) AS brand,
        CAST(addresses AS JSON) AS addresses,
        CAST(sources AS JSON) AS sources,
        ST_GeomFromWKB(geometry) AS geometry
@@ -90,8 +84,9 @@ def overture_places_table(context, database: DuckDBResource) -> MaterializeResul
         {bounding_box}
     )
     """
+
     with database.get_connection() as conn:
-        conn.execute(query_buildings)
+        conn.sql(query)
 
         return MaterializeResult(
             metadata={
@@ -132,6 +127,11 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
         ]
         else "names.common[0].value"
     )
+    categories = (
+        "categories.main"
+        if any(x in release for x in ["alpha", "beta"])
+        else "categories.primary"
+    )
 
     query = f"""
     INSTALL spatial;
@@ -141,19 +141,19 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
     (
         SELECT
             id,
-            CAST({names} AS STRING) AS primary_name,
-            CAST(categories.main AS STRING) AS main_category,
+            CAST(trim({names}, '"') AS STRING) AS primary_name,
+            CAST(trim({categories}, '"') AS STRING) AS main_category,
             list_aggregate(CAST(categories.alternate AS STRING[]), 'string_agg', '|') AS alternate_category,
-            CAST(addresses[0].freeform AS STRING) AS address,
-            CAST(addresses[0].locality AS STRING) AS locality,
-            CAST(addresses[0].postcode AS STRING) AS postcode,
-            CAST(addresses[0].region AS STRING) AS region,
-            CAST(addresses[0].country AS STRING) AS country,
-            CAST(sources[0].dataset AS STRING) AS source,
-            CAST(sources[0].record_id AS STRING) AS source_record_id,
+            CAST(trim(addresses[0].freeform, '"') AS STRING) AS address,
+            CAST(trim(addresses[0].locality, '"') AS STRING) AS locality,
+            CAST(trim(addresses[0].postcode, '"') AS STRING) AS postcode,
+            CAST(trim(addresses[0].region, '"') AS STRING) AS region,
+            CAST(trim(addresses[0].country, '"') AS STRING) AS country,
+            CAST(trim(sources[0].dataset, '"') AS STRING) AS source,
+            CAST(trim(sources[0].record_id, '"') AS STRING) AS source_record_id,
             geometry,
-            ST_X(geometry) as long,
             ST_Y(geometry) as lat,
+            ST_X(geometry) as long,
         FROM 
             {table_name}
     )
@@ -175,72 +175,35 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
 
 
 @asset
-def oa2021(database: DuckDBResource):
-    with database.get_connection() as conn:
-        conn.query(
-            f"""
-            INSTALL spatial;
-            LOAD spatial;
-
-            CREATE OR REPLACE TABLE oa2021 AS
-            (
-            SELECT OA21CD, ST_Transform(SHAPE, 'EPSG:27700', 'EPSG:4326') AS MERC 
-            FROM ST_Read('{Paths.RAW / 'OA_2021_BGC.gpkg'}')
-            );
-            """
-        )
+def oa2021():
+    return gpd.read_file(Paths.RAW / "OA_2021_BGC.gpkg")[["OA21CD", "geometry"]]
 
 
 @asset
-def oa_lookup(database: DuckDBResource):
-    with database.get_connection() as conn:
-        conn.query(
-            f"""
-            CREATE OR REPLACE TABLE oa_lookup AS
-            (
-            SELECT OA21CD, LSOA21CD, MSOA21CD, LAD22CD
-            FROM '{Paths.RAW / 'OA_lookup-2021.csv'}'
-            );
-            """
-        )
+def oa_lookup2021():
+    return pd.read_csv(Paths.RAW / "OA_lookup-2021.csv")[
+        ["OA21CD", "LSOA21CD", "MSOA21CD", "LAD22CD"]
+    ]
 
 
 @asset
-def sgdz2011(database: DuckDBResource):
-    with database.get_connection() as conn:
-        conn.query(
-            """
-            INSTALL spatial;
-            LOAD spatial;
-
-            CREATE OR REPLACE TABLE sgdz2011 AS
-            (
-            SELECT *, ST_Transform(geom, 'EPSG:27700', 'EPSG:4326') AS MERC 
-            FROM ST_Read('./data/raw/SG_DataZone/SG_DataZone_Bdry_2011.shp')
-            );
-            """
-        )
+def sgdz2011():
+    return gpd.read_file(Paths.RAW / "SG_DataZone" / "SG_DataZone_Bdry_2011.shp")[
+        ["DataZone", "geometry"]
+    ].rename(columns={"DataZone": "SG_DZ11CD"})
 
 
 @asset
-def nidz2021(database: DuckDBResource):
-    with database.get_connection() as conn:
-        conn.query(
-            """
-            INSTALL spatial;
-            LOAD spatial;
-
-            CREATE OR REPLACE TABLE nidz2021 AS
-            (
-            SELECT *, ST_Transform(geom, 'EPSG:29902', 'EPSG:4326') AS MERC 
-            FROM ST_Read('./data/raw/NIDZ2021/DZ2021.shp')
-            );
-            """
-        )
+def nidz2021():
+    return (
+        gpd.read_file(Paths.RAW / "NIDZ2021" / "DZ2021.shp")[["DZ2021_cd", "geometry"]]
+        .rename(columns={"DZ2021_cd": "NI_DZ21CD"})
+        .to_crs("EPSG: 27700")
+    )
 
 
 @asset(
-    deps=[overture_places_cleaned, oa2021, oa_lookup, sgdz2011, nidz2021],
+    deps=[overture_places_cleaned, oa2021, oa_lookup2021, sgdz2011, nidz2021],
     partitions_def=release_partition,
 )
 def uk_places(context, database: DuckDBResource) -> MaterializeResult:
@@ -257,41 +220,27 @@ def uk_places(context, database: DuckDBResource) -> MaterializeResult:
     table_name = f"places_uk_{release.replace('-', '_').split('.')[0]}"
 
     with database.get_connection() as conn:
-        conn.create_function("add_h3", h3.geo_to_h3, [DOUBLE, DOUBLE, INTEGER], VARCHAR)
-        conn.sql(
-            f"""
-        INSTALL spatial;
-        LOAD spatial;
+        df = conn.sql(f"SELECT * FROM {table_name}_cleaned").df()
 
-        COPY (
-            SELECT
-                places.*,
-                oa_lookup.*,
-                sgdz2011.DataZone AS SG_DZ2011CD,
-                nidz2021.DZ2021_cd AS NI_DZ2021CD,
-                add_h3(places.lat, places.long, 15) AS h3_15
-            FROM
-                {table_name}_cleaned AS places
-            LEFT JOIN oa2021 ON
-                ST_Intersects(places.geometry, oa2021.MERC)
-            LEFT JOIN oa_lookup ON
-                oa2021.OA21CD = oa_lookup.OA21CD
-            LEFT JOIN sgdz2011 ON
-                ST_Intersects(places.geometry, sgdz2011.MERC)
-            LEFT JOIN nidz2021 ON
-                ST_Intersects(places.geometry, nidz2021.MERC)
-        ) TO '{Paths.OUT / table_name}.parquet' (FORMAT 'PARQUET', COMPRESSION 'zstd')
-        """
-        )
+    gdf = gpd.GeoDataFrame(
+        df, geometry=gpd.points_from_xy(df.long, df.lat), crs="EPSG:4326"
+    ).to_crs("EPSG: 27700")
+    gdf["easting"], gdf["northing"] = gdf.geometry.x, gdf.geometry.y
 
-    df = duckdb.read_parquet(str(Paths.OUT / f"{table_name}.parquet"))
+    gdf = gpd.sjoin(gdf, oa2021, how="left").drop(columns=["index_right"])
+    gdf = gdf.merge(oa_lookup2021, on="OA21CD", how="left")
+
+    gdf = gpd.sjoin(gdf, sgdz2011, how="left").drop(columns=["index_right"])
+    gdf = gpd.sjoin(gdf, nidz2021, how="left").drop(columns=["index_right"])
+    gdf.to_parquet(Paths.OUT / f"{table_name}.parquet", index=False)
+
     cvs = ds.Canvas(plot_width=1000, plot_height=1000)
-    agg = cvs.points(df.df(), "lat", "long")
+    agg = cvs.points(df, "long", "lat")
     img = ds.tf.shade(agg, cmap=colorcet.fire, how="log")
-    ds.utils.export_image(img, filename=str(Paths.STAGING / f"lad2023-{table_name}"))  # type: ignore
+    ds.utils.export_image(img, filename=str(Paths.STAGING / f"{table_name}"))  # type: ignore
 
     image_data = base64.b64encode(
-        open(Paths.STAGING / f"lad2023-{table_name}.png", "rb").read()
+        open(Paths.STAGING / f"{table_name}.png", "rb").read()
     )
     return MaterializeResult(
         metadata={
@@ -299,8 +248,5 @@ def uk_places(context, database: DuckDBResource) -> MaterializeResult:
                 f"![img](data:image/png;base64,{image_data.decode()})"
             ),
             "num_rows": len(df),
-            # "lad_counts": MetadataValue.md(
-            #     df["LAD23NM"].value_counts("LAD23NM").df().to_markdown()  # type: ignore
-            # ),
         }
     )

@@ -3,9 +3,9 @@ from pathlib import Path
 
 class Paths:
     DATA = Path("data")
-    RAW = DATA / Path("raw")
-    STAGING = DATA / Path("staging")
-    OUT = DATA / Path("out")
+    RAW = DATA / "raw"
+    STAGING = DATA / "staging"
+    OUT = DATA / "out"
 
 
 class Constants:
