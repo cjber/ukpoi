@@ -202,11 +202,15 @@ def nidz2021():
     )
 
 
-@asset(
-    deps=[overture_places_cleaned, oa2021, oa_lookup2021, sgdz2011, nidz2021],
-    partitions_def=release_partition,
-)
-def uk_places(context, database: DuckDBResource) -> MaterializeResult:
+@asset(deps=[overture_places_cleaned], partitions_def=release_partition)
+def uk_places(
+    context,
+    database: DuckDBResource,
+    oa2021: gpd.GeoDataFrame,
+    oa_lookup2021: pd.DataFrame,
+    sgdz2011: gpd.GeoDataFrame,
+    nidz2021: gpd.GeoDataFrame,
+) -> MaterializeResult:
     """
     Retrieves and processes UK places data from a specified URL, generates a visualization of the data, and returns a MaterializeResult containing the image data and the number of rows in the dataframe.
 
@@ -229,15 +233,15 @@ def uk_places(context, database: DuckDBResource) -> MaterializeResult:
 
     gdf = gpd.sjoin(gdf, oa2021, how="left").drop(columns=["index_right"])
     gdf = gdf.merge(oa_lookup2021, on="OA21CD", how="left")
-
     gdf = gpd.sjoin(gdf, sgdz2011, how="left").drop(columns=["index_right"])
     gdf = gpd.sjoin(gdf, nidz2021, how="left").drop(columns=["index_right"])
+
     gdf.to_parquet(Paths.OUT / f"{table_name}.parquet", index=False)
 
     cvs = ds.Canvas(plot_width=1000, plot_height=1000)
     agg = cvs.points(df, "long", "lat")
     img = ds.tf.shade(agg, cmap=colorcet.fire, how="log")
-    ds.utils.export_image(img, filename=str(Paths.STAGING / f"{table_name}"))  # type: ignore
+    ds.utils.export_image(img, filename=str(Paths.STAGING / f"{table_name}"))
 
     image_data = base64.b64encode(
         open(Paths.STAGING / f"{table_name}.png", "rb").read()
