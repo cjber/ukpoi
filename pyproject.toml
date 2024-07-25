@@ -7,7 +7,6 @@ authors = [
 ]
 dependencies = [
     "dagster>=1.6.9",
-    "dagster-cloud>=1.6.9",
     "dagster-duckdb>=0.22.9",
     "dagster-webserver>=1.6.9",
     "dagster-aws>=0.22.9",
