@@ -9,4 +9,4 @@ COPY dagster.yaml $DAGSTER_HOME
 WORKDIR /opt/dagster/app
 
 COPY requirements.txt pyproject.toml .env ./
-RUN pip install --no-cache -r requirements.txt
+RUN pip install --no-cache -r requirements.lock
