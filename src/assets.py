@@ -176,29 +176,25 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
 
 
 @asset
-def oa2021():
-    return gpd.read_file(Paths.RAW / "OA_2021_BGC.gpkg")[["OA21CD", "geometry"]]
-
-
-@asset
-def oa_lookup2021():
-    return pd.read_csv(Paths.RAW / "OA_lookup-2021.csv")[
-        ["OA21CD", "LSOA21CD", "MSOA21CD", "LAD22CD"]
-    ]
+def lsoa2021():
+    return gpd.read_file(
+        Paths.RAW
+        / "Lower_layer_Super_Output_Areas_December_2021_Boundaries_EW_BFC_V10_3208594686443890972.gpkg"
+    )[["LSOA21CD", "geometry"]]
 
 
 @asset
 def sgdz2011():
     return gpd.read_file(Paths.RAW / "SG_DataZone" / "SG_DataZone_Bdry_2011.shp")[
         ["DataZone", "geometry"]
-    ].rename(columns={"DataZone": "SG_DZ11CD"})
+    ].rename(columns={"DataZone": "LSOA21CD"})
 
 
 @asset
 def nidz2021():
     return (
         gpd.read_file(Paths.RAW / "NIDZ2021" / "DZ2021.shp")[["DZ2021_cd", "geometry"]]
-        .rename(columns={"DZ2021_cd": "NI_DZ21CD"})
+        .rename(columns={"DZ2021_cd": "LSOA21CD"})
         .to_crs("EPSG: 27700")
     )
 
@@ -207,8 +203,7 @@ def nidz2021():
 def uk_places(
     context,
     database: DuckDBResource,
-    oa2021: gpd.GeoDataFrame,
-    oa_lookup2021: pd.DataFrame,
+    lsoa2021: gpd.GeoDataFrame,
     sgdz2011: gpd.GeoDataFrame,
     nidz2021: gpd.GeoDataFrame,
 ) -> MaterializeResult:
@@ -236,8 +231,7 @@ def uk_places(
     gdf = gdf.to_crs("EPSG: 27700")
     gdf["easting"], gdf["northing"] = gdf.geometry.x, gdf.geometry.y
 
-    gdf = gpd.sjoin(gdf, oa2021, how="left").drop(columns=["index_right"])
-    gdf = gdf.merge(oa_lookup2021, on="OA21CD", how="left")
+    gdf = gpd.sjoin(gdf, lsoa2021, how="left").drop(columns=["index_right"])
     gdf = gpd.sjoin(gdf, sgdz2011, how="left").drop(columns=["index_right"])
     gdf = gpd.sjoin(gdf, nidz2021, how="left").drop(columns=["index_right"])
 
