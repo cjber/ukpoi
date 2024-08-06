@@ -231,9 +231,8 @@ def uk_places(
     gdf = gdf.to_crs("EPSG: 27700")
     gdf["easting"], gdf["northing"] = gdf.geometry.x, gdf.geometry.y
 
-    gdf = gpd.sjoin(gdf, lsoa2021, how="left").drop(columns=["index_right"])
-    gdf = gpd.sjoin(gdf, sgdz2011, how="left").drop(columns=["index_right"])
-    gdf = gpd.sjoin(gdf, nidz2021, how="left").drop(columns=["index_right"])
+    lsoa_combined = pd.concat([lsoa2021, sgdz2011, nidz2021])
+    gdf = gpd.sjoin(gdf, lsoa_combined, how="left").drop(columns=["index_right"])
 
     gdf.to_parquet(Paths.OUT / f"{table_name}.parquet", index=False)
 
