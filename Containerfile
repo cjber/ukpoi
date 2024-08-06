@@ -8,5 +8,5 @@ COPY dagster.yaml $DAGSTER_HOME
 
 WORKDIR /opt/dagster/app
 
-COPY requirements.txt pyproject.toml .env ./
+COPY requirements.lock pyproject.toml .env README.md ./
 RUN pip install --no-cache -r requirements.lock
