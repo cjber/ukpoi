@@ -177,10 +177,9 @@ def overture_places_cleaned(context, database: DuckDBResource) -> MaterializeRes
 
 @asset
 def lsoa2021():
-    return gpd.read_file(
-        Paths.RAW
-        / "Lower_layer_Super_Output_Areas_December_2021_Boundaries_EW_BFC_V10_3208594686443890972.gpkg"
-    )[["LSOA21CD", "geometry"]]
+    return gpd.read_file(Paths.RAW / "LSOA2021" / "LSOA_2021_EW_BFC_V8.shp")[
+        ["LSOA21CD", "geometry"]
+    ]
 
 
 @asset
