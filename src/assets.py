@@ -231,7 +231,11 @@ def uk_places(
     gdf["easting"], gdf["northing"] = gdf.geometry.x, gdf.geometry.y
 
     lsoa_combined = pd.concat([lsoa2021, sgdz2011, nidz2021])
-    gdf = gpd.sjoin(gdf, lsoa_combined, how="left").drop(columns=["index_right"])
+    gdf = (
+        gpd.sjoin(gdf, lsoa_combined, how="left")
+        .drop(columns=["index_right"])
+        .dropna(subset=["LSOA21CD"])
+    )
 
     gdf.to_parquet(Paths.OUT / f"{table_name}.parquet", index=False)
 
